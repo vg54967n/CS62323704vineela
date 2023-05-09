@@ -1,0 +1,62 @@
+import java.io.IOException;
+import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class ContactProgram2 {
+
+	public static void main(String[] args) throws SQLException, IOException, 
+	ClassNotFoundException {
+		
+		// Postgresql driver
+				Class.forName("org.postgresql.Driver");
+				
+				// Connection to postgre				
+				Connection conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres","postgres","admin");
+		
+				//Atomicity
+				conn.setAutoCommit(false);
+				
+				// For Isolation
+				conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+				
+				Statement stmt = null;
+				try {
+					// Create statement object
+					stmt = conn.createStatement();
+					
+					//CASCADE is used in view of maintaining integrity and consistency
+					stmt.executeUpdate("ALTER TABLE stock DROP CONSTRAINT fk_depot_stock,ADD CONSTRAINT fk_depot_stock FOREIGN KEY(depid)REFERENCES depot(depid)ON DELETE CASCADE ON UPDATE CASCADE;");
+		
+                    
+                  //1.Product p1 is deleted from product and stock
+				  stmt.executeUpdate("DELETE FROM product WHERE prodid = 'p1'");
+				  stmt.executeUpdate("DELETE FROM stock WHERE prodid = 'p1'");
+				  
+				//3. Change product pl name to pp1 in Product and Stock
+				  stmt.executeUpdate("UPDATE product SET pname = 'pp1' WHERE prodid = 'p1'");
+				  stmt.executeUpdate("UPDATE stock SET pname = 'pp1' WHERE prodid = 'p1'");
+				  
+				//5. Add product (p100, cd, 5) in Product and (p100, d2, 50) in Stock 
+				  stmt.executeUpdate("INSERT INTO product (prodid, pname) VALUES ('p100', 'cd')");
+				  stmt.executeUpdate("INSERT INTO stock (prodid, depid, quantity) VALUES ('p100', 'd2', 50)");
+				}
+		
+				catch(SQLException e) {
+					
+					System.out.println("Transaction Failed, PERFORMING ROLLBACK \n"+e);
+					// for atomicity
+					conn.rollback();
+					stmt.close();
+					conn.close();
+					return;
+				}
+		
+				System.out.println("Transaction Successful, PERFORMING COMMIT \n");
+				conn.commit();
+				stmt.close();
+				conn.close();
+				
+	}
+}
